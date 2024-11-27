@@ -1,80 +1,82 @@
-import {Link} from '@remix-run/react';
-import {type VariantOption, VariantSelector} from '@shopify/hydrogen';
-import type {
-  ProductFragment,
-  ProductVariantFragment,
-} from 'storefrontapi.generated';
-import {AddToCartButton} from '~/components/AddToCartButton';
-import {useAside} from '~/components/Aside';
 
-export function ProductForm({
-  product,
-  selectedVariant,
-  variants,
-}: {
-  product: ProductFragment;
-  selectedVariant: ProductFragment['selectedVariant'];
-  variants: Array<ProductVariantFragment>;
-}) {
-  const {open} = useAside();
+import {useState} from 'react';
+import {Image, Money} from '@shopify/hydrogen';
+import type {Product} from 'storefrontapi.generated';
+
+interface ProductCardProps {
+  product: Product;
+}
+
+export function ProductCard({product}: ProductCardProps) {
+  const [isDrawerOpen, setDrawerOpen] = useState(false);
+
+  const openDrawer = () => setDrawerOpen(true);
+  const closeDrawer = () => setDrawerOpen(false);
+
   return (
-    <div className="product-form">
-      <VariantSelector
-        handle={product.handle}
-        options={product.options.filter((option) => option.optionValues.length > 1)}
-        variants={variants}
+    <div className="product-card border p-4 rounded shadow hover:shadow-lg transition">
+      <div className="product-image">
+        <Image data={product.images.nodes[0]} sizes="(min-width: 45em) 20vw, 50vw" />
+      </div>
+      <div className="product-details mt-2">
+        <h3 className="font-bold text-lg">{product.title}</h3>
+        <p className="text-sm text-gray-500">
+          <Money data={product.priceRange.minVariantPrice} />
+        </p>
+      </div>
+      <button
+        className="mt-4 w-full bg-black text-white py-2 rounded"
+        onClick={openDrawer}
       >
-        {({option}) => <ProductOptions key={option.name} option={option} />}
-      </VariantSelector>
-      <br />
-      <AddToCartButton
-        disabled={!selectedVariant || !selectedVariant.availableForSale}
-        onClick={() => {
-          open('cart');
-        }}
-        lines={
-          selectedVariant
-            ? [
-                {
-                  merchandiseId: selectedVariant.id,
-                  quantity: 1,
-                  selectedVariant,
-                },
-              ]
-            : []
-        }
-      >
-        {selectedVariant?.availableForSale ? 'Add to cart' : 'Sold out'}
-      </AddToCartButton>
+        Add to Cart
+      </button>
+
+      {isDrawerOpen && <ProductDrawer product={product} closeDrawer={closeDrawer} />}
     </div>
   );
 }
 
-function ProductOptions({option}: {option: VariantOption}) {
+interface ProductDrawerProps {
+  product: Product;
+  closeDrawer: () => void;
+}
+
+export function ProductDrawer({product, closeDrawer}: ProductDrawerProps) {
+  const [quantity, setQuantity] = useState(1);
+
+  const handleQuantityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setQuantity(Number(event.target.value));
+  };
+
   return (
-    <div className="product-options" key={option.name}>
-      <h5>{option.name}</h5>
-      <div className="product-options-grid">
-        {option.values.map(({value, isAvailable, isActive, to}) => {
-          return (
-            <Link
-              className="product-options-item"
-              key={option.name + value}
-              prefetch="intent"
-              preventScrollReset
-              replace
-              to={to}
-              style={{
-                border: isActive ? '1px solid black' : '1px solid transparent',
-                opacity: isAvailable ? 1 : 0.3,
-              }}
-            >
-              {value}
-            </Link>
-          );
-        })}
+    <div className="fixed top-0 right-0 w-96 bg-white shadow-lg h-full z-50">
+      <div className="p-4 border-b flex justify-between items-center">
+        <h2 className="text-lg font-bold">Product Details</h2>
+        <button onClick={closeDrawer} className="text-gray-500 hover:text-black">✕</button>
       </div>
-      <br />
+      <div className="p-4">
+        <Image data={product.images.nodes[0]} sizes="(min-width: 45em) 20vw, 50vw" />
+        <h3 className="mt-4 text-lg font-bold">{product.title}</h3>
+        <p className="mt-2 text-sm text-gray-500">
+          <Money data={product.priceRange.minVariantPrice} />
+        </p>
+        <div className="mt-4">
+          <label htmlFor="quantity" className="block text-sm text-gray-700">
+            Quantity
+          </label>
+          <input
+            id="quantity"
+            type="number"
+            value={quantity}
+            onChange={handleQuantityChange}
+            className="mt-1 border rounded w-full py-1 px-2"
+            min="1"
+          />
+        </div>
+        <button className="mt-4 w-full bg-black text-white py-2 rounded">
+          Add {quantity} to Cart
+        </button>
+      </div>
     </div>
   );
 }

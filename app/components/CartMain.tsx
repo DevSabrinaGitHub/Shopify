@@ -1,68 +1,84 @@
-import {useOptimisticCart} from '@shopify/hydrogen';
-import {Link} from '@remix-run/react';
+
+import {useState} from 'react';
+import {Await} from '@remix-run/react';
 import type {CartApiQueryFragment} from 'storefrontapi.generated';
-import {useAside} from '~/components/Aside';
-import {CartLineItem} from '~/components/CartLineItem';
-import {CartSummary} from './CartSummary';
+import {Money} from '@shopify/hydrogen';
 
-export type CartLayout = 'page' | 'aside';
-
-export type CartMainProps = {
+interface CartMainProps {
   cart: CartApiQueryFragment | null;
-  layout: CartLayout;
-};
-
-/**
- * The main cart component that displays the cart items and summary.
- * It is used by both the /cart route and the cart aside dialog.
- */
-export function CartMain({layout, cart: originalCart}: CartMainProps) {
-  // The useOptimisticCart hook applies pending actions to the cart
-  // so the user immediately sees feedback when they modify the cart.
-  const cart = useOptimisticCart(originalCart);
-
-  const linesCount = Boolean(cart?.lines?.nodes?.length || 0);
-  const withDiscount =
-    cart &&
-    Boolean(cart?.discountCodes?.filter((code) => code.applicable)?.length);
-  const className = `cart-main ${withDiscount ? 'with-discount' : ''}`;
-  const cartHasItems = cart?.totalQuantity! > 0;
-
-  return (
-    <div className={className}>
-      <CartEmpty hidden={linesCount} layout={layout} />
-      <div className="cart-details">
-        <div aria-labelledby="cart-lines">
-          <ul>
-            {(cart?.lines?.nodes ?? []).map((line) => (
-              <CartLineItem key={line.id} line={line} layout={layout} />
-            ))}
-          </ul>
-        </div>
-        {cartHasItems && <CartSummary cart={cart} layout={layout} />}
-      </div>
-    </div>
-  );
+  layout: 'aside' | 'page';
 }
 
-function CartEmpty({
-  hidden = false,
-}: {
-  hidden: boolean;
-  layout?: CartMainProps['layout'];
-}) {
-  const {close} = useAside();
+export function CartMain({cart, layout}: CartMainProps) {
+  const [cartItems, setCartItems] = useState(cart?.lines.nodes || []);
+
+  const handleQuantityChange = (lineId: string, quantity: number) => {
+    const updatedItems = cartItems.map((item) =>
+      item.id === lineId ? { ...item, quantity } : item
+    );
+    setCartItems(updatedItems);
+  };
+
+  const handleRemoveItem = (lineId: string) => {
+    const updatedItems = cartItems.filter((item) => item.id !== lineId);
+    setCartItems(updatedItems);
+  };
+
+  const calculateSubtotal = () => {
+    return cartItems.reduce((total, item) => {
+      return total + item.quantity * parseFloat(item.merchandise.price.amount);
+    }, 0);
+  };
+
   return (
-    <div hidden={hidden}>
-      <br />
-      <p>
-        Looks like you haven&rsquo;t added anything yet, let&rsquo;s get you
-        started!
-      </p>
-      <br />
-      <Link to="/collections" onClick={close} prefetch="viewport">
-        Continue shopping →
-      </Link>
+    <div className={`cart-drawer ${layout === 'aside' ? 'w-96' : 'w-full'} fixed right-0 top-0 bg-white shadow-lg h-full z-50`}>
+      <div className="p-4 border-b flex justify-between items-center">
+        <h2 className="text-lg font-bold">Your Bag</h2>
+        <button onClick={() => console.log('Close Drawer')} className="text-gray-500 hover:text-black">✕</button>
+      </div>
+      <div className="p-4 overflow-y-auto">
+        {cartItems.length > 0 ? (
+          cartItems.map((item) => (
+            <div key={item.id} className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-4">
+                <img src={item.merchandise.image.url} alt={item.merchandise.image.altText} className="w-16 h-16 object-cover" />
+                <div>
+                  <h3 className="text-sm font-bold">{item.merchandise.title}</h3>
+                  <p className="text-xs text-gray-500">
+                    <Money data={item.merchandise.price} />
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="number"
+                  className="w-12 border rounded text-center"
+                  value={item.quantity}
+                  min="1"
+                  onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value))}
+                />
+                <button
+                  className="text-red-500 hover:underline"
+                  onClick={() => handleRemoveItem(item.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500">Your cart is empty.</p>
+        )}
+      </div>
+      <div className="p-4 border-t">
+        <p className="text-sm flex justify-between">
+          <span>Subtotal</span>
+          <span className="font-bold">
+            <Money data={{amount: calculateSubtotal(), currencyCode: 'USD'}} />
+          </span>
+        </p>
+        <button className="w-full bg-black text-white py-2 mt-4 rounded">Checkout</button>
+      </div>
     </div>
   );
 }

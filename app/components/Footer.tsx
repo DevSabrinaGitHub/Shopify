@@ -1,3 +1,4 @@
+
 import {Suspense} from 'react';
 import {Await, NavLink} from '@remix-run/react';
 import type {FooterQuery, HeaderQuery} from 'storefrontapi.generated';
@@ -17,14 +18,24 @@ export function Footer({
     <Suspense>
       <Await resolve={footerPromise}>
         {(footer) => (
-          <footer className="footer">
-            {footer?.menu && header.shop.primaryDomain?.url && (
-              <FooterMenu
-                menu={footer.menu}
-                primaryDomainUrl={header.shop.primaryDomain.url}
-                publicStoreDomain={publicStoreDomain}
-              />
-            )}
+          <footer className="bg-black text-white py-8">
+            {/* Footer Menu */}
+            <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+              {footer?.menu && header.shop.primaryDomain?.url && (
+                <FooterMenu
+                  menu={footer.menu}
+                  primaryDomainUrl={header.shop.primaryDomain.url}
+                  publicStoreDomain={publicStoreDomain}
+                />
+              )}
+            </div>
+
+            {/* Bottom Bar */}
+            <div className="bg-gray-800 text-center py-4 mt-8">
+              <p className="text-sm uppercase tracking-wide">
+                High Quality Ingredients • Independently Certified • Expert Driven • Shipped Internationally
+              </p>
+            </div>
           </footer>
         )}
       </Await>
@@ -38,14 +49,14 @@ function FooterMenu({
   publicStoreDomain,
 }: {
   menu: FooterQuery['menu'];
-  primaryDomainUrl: FooterProps['header']['shop']['primaryDomain']['url'];
+  primaryDomainUrl: string;
   publicStoreDomain: string;
 }) {
   return (
-    <nav className="footer-menu" role="navigation">
+    <nav className="footer-menu space-y-4" role="navigation">
       {(menu || FALLBACK_FOOTER_MENU).items.map((item) => {
         if (!item.url) return null;
-        // if the url is internal, we strip the domain
+        // Adjust URLs for internal/external links
         const url =
           item.url.includes('myshopify.com') ||
           item.url.includes(publicStoreDomain) ||
@@ -54,7 +65,7 @@ function FooterMenu({
             : item.url;
         const isExternal = !url.startsWith('/');
         return isExternal ? (
-          <a href={url} key={item.id} rel="noopener noreferrer" target="_blank">
+          <a href={url} key={item.id} rel="noopener noreferrer" target="_blank" className="text-white hover:underline">
             {item.title}
           </a>
         ) : (
@@ -62,7 +73,7 @@ function FooterMenu({
             end
             key={item.id}
             prefetch="intent"
-            style={activeLinkStyle}
+            className="text-white hover:underline"
             to={url}
           >
             {item.title}
@@ -114,16 +125,3 @@ const FALLBACK_FOOTER_MENU = {
     },
   ],
 };
-
-function activeLinkStyle({
-  isActive,
-  isPending,
-}: {
-  isActive: boolean;
-  isPending: boolean;
-}) {
-  return {
-    fontWeight: isActive ? 'bold' : undefined,
-    color: isPending ? 'grey' : 'white',
-  };
-}

@@ -7,7 +7,7 @@ import type {
 } from 'storefrontapi.generated';
 import {Aside} from '~/components/Aside';
 import {Footer} from '~/components/Footer';
-import {Header, HeaderMenu} from '~/components/Header';
+import {Header} from '~/components/Header';
 import {CartMain} from '~/components/CartMain';
 import {
   SEARCH_ENDPOINT,
@@ -34,9 +34,21 @@ export function PageLayout({
 }: PageLayoutProps) {
   return (
     <Aside.Provider>
+      {/* Cart Aside */}
       <CartAside cart={cart} />
+
+      {/* Search Aside */}
       <SearchAside />
-      <MobileMenuAside header={header} publicStoreDomain={publicStoreDomain} />
+
+      {/* Mobile Menu Aside */}
+      {header?.menu?.items && header.shop.primaryDomain && (
+        <MobileMenuAside
+          header={header}
+          publicStoreDomain={publicStoreDomain}
+        />
+      )}
+
+      {/* Header */}
       {header && (
         <Header
           header={header}
@@ -45,7 +57,11 @@ export function PageLayout({
           publicStoreDomain={publicStoreDomain}
         />
       )}
+
+      {/* Main Content */}
       <main>{children}</main>
+
+      {/* Footer */}
       <Footer
         footer={footer}
         header={header}
@@ -58,11 +74,15 @@ export function PageLayout({
 function CartAside({cart}: {cart: PageLayoutProps['cart']}) {
   return (
     <Aside type="cart" heading="CART">
-      <Suspense fallback={<p>Loading cart ...</p>}>
+      <Suspense fallback={<p>Loading cart...</p>}>
         <Await resolve={cart}>
-          {(cart) => {
-            return <CartMain cart={cart} layout="aside" />;
-          }}
+          {(resolvedCart) =>
+            resolvedCart ? (
+              <CartMain cart={resolvedCart} layout="aside" />
+            ) : (
+              <p>Your cart is empty.</p>
+            )
+          }
         </Await>
       </Suspense>
     </Aside>
@@ -137,8 +157,7 @@ function SearchAside() {
                     to={`${SEARCH_ENDPOINT}?q=${term.current}`}
                   >
                     <p>
-                      View all results for <q>{term.current}</q>
-                      &nbsp; →
+                      View all results for <q>{term.current}</q> → 
                     </p>
                   </Link>
                 ) : null}
@@ -159,16 +178,20 @@ function MobileMenuAside({
   publicStoreDomain: PageLayoutProps['publicStoreDomain'];
 }) {
   return (
-    header.menu &&
-    header.shop.primaryDomain?.url && (
-      <Aside type="mobile" heading="MENU">
-        <HeaderMenu
-          menu={header.menu}
-          viewport="mobile"
-          primaryDomainUrl={header.shop.primaryDomain.url}
-          publicStoreDomain={publicStoreDomain}
-        />
-      </Aside>
-    )
+    <Aside type="mobile" heading="MENU">
+      <nav className="mobile-menu">
+        {header.menu?.items.map((item) => (
+          item.url ? (
+            <Link
+              key={item.id}
+              to={item.url ?? '#'}
+              className="block py-2 text-sm hover:underline"
+            >
+              {item.title}
+            </Link>
+          ) : null
+        ))}
+      </nav>
+    </Aside>
   );
 }
